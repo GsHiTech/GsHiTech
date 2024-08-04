@@ -1,1 +1,132 @@
 
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+ 
+dataset = pd.read_excel("HousePricePrediction.xlsx")
+# Printing first 5 records of the dataset
+print(dataset.head(5))
+   Id  MSSubClass MSZoning  LotArea LotConfig BldgType  OverallCond  \
+0   0          60       RL     8450    Inside     1Fam            5   
+1   1          20       RL     9600       FR2     1Fam            8   
+2   2          60       RL    11250    Inside     1Fam            5   
+3   3          70       RL     9550    Corner     1Fam            5   
+4   4          60       RL    14260       FR2     1Fam            5   
+
+   YearBuilt  YearRemodAdd Exterior1st  BsmtFinSF2  TotalBsmtSF  SalePrice  
+0       2003          2003     VinylSd         0.0        856.0   208500.0  
+1       1976          1976     MetalSd         0.0       1262.0   181500.0  
+2       2001          2002     VinylSd         0.0        920.0   223500.0  
+3       1915          1970     Wd Sdng         0.0        756.0   140000.0  
+4       2000          2000     VinylSd         0.0       1145.0   250000.0  
+dataset.shape
+(2919, 13)
+obj = (dataset.dtypes == 'object')
+object_cols = list(obj[obj].index)
+print("Categorical variables:",len(object_cols))
+
+int_ = (dataset.dtypes == 'int')
+num_cols = list(int_[int_].index)
+print("Integer variables:",len(num_cols))
+
+fl = (dataset.dtypes == 'float')
+fl_cols = list(fl[fl].index)
+print("Float variables:",len(fl_cols))
+Categorical variables: 4
+Integer variables: 0
+Float variables: 3
+plt.figure(figsize=(12, 6))
+numeric_dataset = dataset.select_dtypes(include=['number'])
+correlation_matrix = numeric_dataset.corr()
+sns.heatmap(correlation_matrix,
+            cmap='BrBG',
+            fmt='.2f',
+            linewidths=2,
+            annot=True)
+plt.show()
+
+unique_values = []
+for col in object_cols:
+    unique_values.append(dataset[col].unique().size)
+plt.figure(figsize=(10,6))
+plt.title('No. Unique values of Categorical Features')
+plt.xticks(rotation=90)
+sns.barplot(x=object_cols,y=unique_values)
+<Axes: title={'center': 'No. Unique values of Categorical Features'}>
+
+plt.figure(figsize=(18, 36))
+plt.title('Categorical Features: Distribution')
+plt.xticks(rotation=90)
+index = 1
+
+for col in object_cols:
+	y = dataset[col].value_counts()
+	plt.subplot(11, 4, index)
+	plt.xticks(rotation=90)
+	sns.barplot(x=list(y.index), y=y)
+	index += 1
+
+sns.pairplot(dataset)
+<seaborn.axisgrid.PairGrid at 0x1924bc55940>
+
+# data cleaning 
+dataset['SalePrice'] = dataset['SalePrice'].fillna(
+dataset['SalePrice'].mean())
+new_dataset = dataset.dropna()
+new_dataset.isnull().sum()
+Id              0
+MSSubClass      0
+MSZoning        0
+LotArea         0
+LotConfig       0
+BldgType        0
+OverallCond     0
+YearBuilt       0
+YearRemodAdd    0
+Exterior1st     0
+BsmtFinSF2      0
+TotalBsmtSF     0
+SalePrice       0
+dtype: int64
+# data Label categorical features using OneHotEncoder 
+from sklearn.preprocessing import OneHotEncoder
+
+s = (new_dataset.dtypes == 'object')
+object_cols = list(s[s].index)
+print("Categorical variables:")
+print(object_cols)
+print('No. of. categorical features: ', 
+	len(object_cols))
+Categorical variables:
+['MSZoning', 'LotConfig', 'BldgType', 'Exterior1st']
+No. of. categorical features:  4
+OH_encoder = OneHotEncoder(sparse_output=False)
+OH_cols = pd.DataFrame(OH_encoder.fit_transform(new_dataset[object_cols]))
+OH_cols.index = new_dataset.index
+OH_cols.columns = OH_encoder.get_feature_names_out()
+df_final = new_dataset.drop(object_cols, axis=1)
+df_final = pd.concat([df_final, OH_cols], axis=1)
+# Splitting Dataset into Training and Testing
+from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import train_test_split
+
+X = df_final.drop(['SalePrice'], axis=1)
+Y = df_final['SalePrice']
+
+# Split the training set into 
+# training and validation set
+X_train, X_valid, Y_train, Y_valid = train_test_split(
+	X, Y, train_size=0.5, test_size=0.5, random_state=0)
+# regression model prints mean_absolute_persentage error:(linear regression)
+from sklearn.linear_model import LinearRegression
+import  numpy as np
+
+model_LR = LinearRegression()
+model_LR.fit(X_train, Y_train)
+Y_pred = model_LR.predict(X_valid)
+def mean_absolute_percentage_error(y_true, y_pred): 
+    return np.mean(np.abs((y_true - y_pred) / y_true))
+print(mean_absolute_percentage_error(Y_valid, Y_pred))
+0.18800996875055298
+ 
+ 
